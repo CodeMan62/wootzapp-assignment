@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MiniShop</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f7; color: #1d1d1f; min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; padding: 24px; }
+  .app { width: 100%; max-width: 480px; background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden; min-height: 560px; }
+  .screen { display: none; padding: 24px; }
+  .screen.active { display: block; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  h2 { font-size: 20px; margin-bottom: 16px; }
+  .subtitle { color: #6e6e73; font-size: 14px; margin-bottom: 20px; }
+  .product-card { border: 1px solid #e5e5ea; border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .product-card .info { flex: 1; }
+  .product-card .name { font-weight: 600; font-size: 16px; }
+  .product-card .price { color: #6e6e73; font-size: 14px; margin-top: 2px; }
+  .row { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+  .qty { display: inline-flex; align-items: center; gap: 16px; border: 1px solid #d2d2d7; border-radius: 999px; padding: 6px 10px; }
+  .qty button { width: 32px; height: 32px; border: none; background: #f5f5f7; border-radius: 50%; font-size: 18px; cursor: pointer; color: #1d1d1f; }
+  .qty button:hover:not(:disabled) { background: #e5e5ea; }
+  .qty button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .qty .val { font-size: 18px; font-weight: 600; min-width: 20px; text-align: center; }
+  .btn { background: #000; color: #fff; border: none; border-radius: 12px; padding: 12px 20px; font-size: 15px; font-weight: 500; cursor: pointer; width: 100%; margin-top: 8px; transition: background 0.15s; }
+  .btn:hover { background: #333; }
+  .btn.secondary { background: #e5e5ea; color: #1d1d1f; }
+  .btn.secondary:hover { background: #d2d2d7; }
+  .btn.danger { background: #e5e5ea; color: #d70015; }
+  .btn.danger:hover { background: #ffd9dc; }
+  .btn.small { width: auto; padding: 8px 16px; font-size: 14px; }
+  .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #e5e5ea; }
+  .cart-item:last-child { border-bottom: none; }
+  .cart-item .name { font-weight: 500; }
+  .cart-item .qty-text { color: #6e6e73; font-size: 14px; }
+  .empty { text-align: center; color: #6e6e73; padding: 40px 0; }
+  .success-icon { width: 64px; height: 64px; background: #34c759; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: #fff; font-size: 32px; }
+  .newsletter-box { text-align: center; padding: 60px 20px; color: #6e6e73; }
+  .btn-hidden { visibility: hidden; pointer-events: none; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .overlay.active { display: flex; }
+  .popup { background: #fff; border-radius: 12px; padding: 24px; max-width: 320px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
+  .popup h3 { margin-bottom: 8px; }
+  .popup p { color: #6e6e73; font-size: 14px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div id="screen-catalog" class="screen active">
+    <h1>MiniShop</h1>
+    <p class="subtitle">Pick something you like.</p>
+    <div id="catalog-list"></div>
+    <button class="btn secondary" data-btn onclick="show('newsletter')">Newsletter</button>
+  </div>
+
+  <div id="screen-product" class="screen">
+    <h2 id="product-name"></h2>
+    <p class="subtitle" id="product-price"></p>
+    <p id="product-desc" style="margin: 12px 0;"></p>
+    <div class="row">
+      <span>Quantity:</span>
+      <div class="qty">
+        <button data-btn id="qty-minus" onclick="changeQty(-1)">−</button>
+        <span class="val" id="qty-val">1</span>
+        <button data-btn id="qty-plus" onclick="changeQty(1)">+</button>
+      </div>
+    </div>
+    <button class="btn" data-btn onclick="addToCart()">Add to cart</button>
+    <button class="btn secondary" data-btn onclick="show('catalog')">Back</button>
+  </div>
+
+  <div id="screen-cart" class="screen">
+    <h2>Your Cart</h2>
+    <div id="cart-list"></div>
+    <button class="btn" data-btn onclick="checkout()">Checkout</button>
+    <button class="btn danger" data-btn onclick="clearCart()">Clear cart</button>
+    <button class="btn secondary" data-btn onclick="show('catalog')">Back</button>
+  </div>
+
+  <div id="screen-done" class="screen">
+    <div class="success-icon">✓</div>
+    <h2 style="text-align:center;">Order placed</h2>
+    <p class="subtitle" style="text-align:center;">Here's what you ordered:</p>
+    <div id="order-list" style="margin: 16px 0;"></div>
+    <button class="btn" data-btn onclick="resetAndHome()">Back to shop</button>
+  </div>
+
+  <div id="screen-newsletter" class="screen">
+    <div class="newsletter-box">
+      <h2>Newsletter</h2>
+      <p style="margin-top:8px;">This page does nothing useful.</p>
+    </div>
+    <button class="btn secondary" data-btn onclick="show('catalog')">Back</button>
+  </div>
+
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="popup">
+    <h3>Special Offer!</h3>
+    <p>Subscribe now and get 10% off your first order.</p>
+    <button class="btn" id="dismiss-btn" onclick="dismissPopup()">Dismiss</button>
+  </div>
+</div>
+
+<script>
+  const products = [
+    { id: 1, slug: "blue-mug",    name: "Blue Mug",    price: 12, desc: "Ceramic 12oz mug in glossy cobalt blue." },
+    { id: 2, slug: "red-shirt",   name: "Red Shirt",   price: 25, desc: "100% cotton crew-neck tee, classic red." },
+    { id: 3, slug: "green-plant", name: "Green Plant", price: 18, desc: "Low-maintenance pothos in a ceramic pot." },
+    { id: 4, slug: "black-pen",   name: "Black Pen",   price: 5,  desc: "Smooth gel pen, 0.7mm, matte black barrel." }
+  ];
+
+  const params = new URLSearchParams(location.search);
+  const TARGET_ITEM = params.get("item")    || "blue-mug";
+  const TARGET_QTY  = parseInt(params.get("qty") || "2", 10);
+  const SEED        = parseInt(params.get("seed") || "42", 10);
+  const POPUP_P     = parseFloat(params.get("popup_p") || "0.15");
+  const DELAY_P     = parseFloat(params.get("delay_p") || "0.10");
+
+  console.log("MiniShop config:", { TARGET_ITEM, TARGET_QTY, SEED, POPUP_P, DELAY_P });
+
+  function mulberry32(a) {
+    return function() {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  let rand = mulberry32(SEED);
+
+  let cart = {};
+  let currentProduct = null;
+  let qty = 1;
+  let lastOrder = {};
+
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const screen = document.getElementById('screen-' + id);
+    screen.classList.add('active');
+    if (id === 'cart') renderCart();
+    if (rand() < POPUP_P) showPopup();
+    applyButtonDelays(screen);
+  }
+
+  function applyButtonDelays(screen) {
+    const buttons = screen.querySelectorAll('button[data-btn]');
+    buttons.forEach(btn => {
+      btn.classList.add('btn-hidden');
+      if (rand() < DELAY_P) {
+        const ms = 50 + Math.floor(rand() * 251);
+        setTimeout(() => btn.classList.remove('btn-hidden'), ms);
+      } else {
+        setTimeout(() => btn.classList.remove('btn-hidden'), 0);
+      }
+    });
+  }
+
+  function showPopup() { document.getElementById('overlay').classList.add('active'); }
+  function dismissPopup() { document.getElementById('overlay').classList.remove('active'); }
+
+  function renderCatalog() {
+    const list = document.getElementById('catalog-list');
+    list.innerHTML = products.map(p => `
+      <div class="product-card">
+        <div class="info">
+          <div class="name">${p.name}</div>
+          <div class="price">$${p.price}</div>
+        </div>
+        <button class="btn small" data-btn onclick="openProduct(${p.id})">View</button>
+      </div>
+    `).join('');
+  }
+
+  function openProduct(id) {
+    currentProduct = products.find(p => p.id === id);
+    qty = 1;
+    document.getElementById('product-name').textContent = currentProduct.name;
+    document.getElementById('product-price').textContent = '$' + currentProduct.price;
+    document.getElementById('product-desc').textContent = currentProduct.desc;
+    document.getElementById('qty-val').textContent = qty;
+    updateQtyButtons();
+    show('product');
+  }
+
+  function changeQty(delta) {
+    qty = Math.min(3, Math.max(1, qty + delta));
+    document.getElementById('qty-val').textContent = qty;
+    updateQtyButtons();
+  }
+  function updateQtyButtons() {
+    document.getElementById('qty-minus').disabled = (qty <= 1);
+    document.getElementById('qty-plus').disabled  = (qty >= 3);
+  }
+
+  function addToCart() {
+    cart[currentProduct.id] = (cart[currentProduct.id] || 0) + qty;
+    show('cart');
+  }
+
+  function renderCart() {
+    const list = document.getElementById('cart-list');
+    const ids = Object.keys(cart);
+    if (ids.length === 0) {
+      list.innerHTML = '<div class="empty">Your cart is empty.</div>';
+      return;
+    }
+    list.innerHTML = ids.map(id => {
+      const p = products.find(x => x.id == id);
+      return `
+        <div class="cart-item">
+          <span class="name">${p.name}</span>
+          <span class="qty-text">×${cart[id]} ($${p.price * cart[id]})</span>
+        </div>`;
+    }).join('');
+  }
+
+  function clearCart() { cart = {}; renderCart(); }
+
+  function checkout() {
+    if (Object.keys(cart).length === 0) { alert('Your cart is empty.'); return; }
+    lastOrder = { ...cart };
+    cart = {};
+    renderOrder();
+    show('done');
+  }
+
+  function renderOrder() {
+    const list = document.getElementById('order-list');
+    list.innerHTML = Object.keys(lastOrder).map(id => {
+      const p = products.find(x => x.id == id);
+      return `
+        <div class="cart-item">
+          <span class="name">${p.name} <span style="color:#86868b;font-size:12px;">(${p.slug})</span></span>
+          <span class="qty-text">×${lastOrder[id]}</span>
+        </div>`;
+    }).join('');
+  }
+
+  function resetAndHome() { lastOrder = {}; show('catalog'); }
+
+  renderCatalog();
+  show('catalog');
+</script>
+</body>
+</html>
